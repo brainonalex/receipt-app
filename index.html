@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>영수증 정리 비서</title>
+    <style>
+        :root { --primary: #1a73e8; --bg: #f8f9fa; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #333; }
+        .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2 { margin-top: 0; color: var(--primary); font-size: 1.2rem; }
+        input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.3s; }
+        button:active { transform: scale(0.98); opacity: 0.9; }
+        .hidden { display: none; }
+        #preview { width: 100%; border-radius: 10px; margin-top: 10px; display: none; }
+        .loading { text-align: center; color: var(--primary); font-weight: bold; padding: 20px; }
+        .setup-btn { background: #6c757d; margin-top: 10px; font-size: 14px; padding: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen" class="card hidden">
+        <h2>앱 초기 설정</h2>
+        <p style="font-size: 14px; color: #666;">처음 한 번만 설정하면 됩니다.</p>
+        <input type="text" id="userName" placeholder="본인 이름 (예: 손근형)">
+        <input type="text" id="folderId" placeholder="구글 드라이브 폴더 ID">
+        <input type="text" id="sheetId" placeholder="스프레드시트 ID">
+        <button onclick="saveSettings()">설정 저장하기</button>
+    </div>
+
+    <div id="main-screen" class="card">
+        <h2 id="welcome-msg">영수증 촬영</h2>
+        <p style="font-size: 14px; color: #666;">영수증을 평평한 곳에 두고 찍어주세요.</p>
+        
+        <input type="file" id="camera" accept="image/*" capture="environment" class="hidden" onchange="handleFile(this)">
+        <button onclick="document.getElementById('camera').click()">📸 영수증 사진 찍기</button>
+        
+        <img id="preview">
+        
+        <div id="result-area" class="hidden">
+            <h3 style="margin-top:20px; font-size:15px;">추출된 내용 확인</h3>
+            <input type="date" id="r-date">
+            <input type="text" id="r-store" placeholder="상호명">
+            <input type="number" id="r-amount" placeholder="금액">
+            <select id="r-currency">
+                <option value="JPY">JPY (엔)</option>
+                <option value="KRW">KRW (원)</option>
+                <option value="USD">USD (달러)</option>
+            </select>
+            <button id="send-btn" onclick="sendData()" style="background: #28a745;">시트로 전송하기</button>
+        </div>
+
+        <button class="setup-btn" onclick="showSetup()">⚙️ 설정 수정</button>
+    </div>
+
+    <div id="loading" class="loading hidden">처리 중입니다... 잠시만 기다려주세요.</div>
+
+    <script>
+        // 주소창이 완성된 상태입니다!
+        var WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx2AToO9SFJ1tl2sMdZQlA3hJugVWe_IxFOB5fhkKPz5cdzU0XLBKWpBW5E_qpBLWQZLw/exec";
+
+        window.onload = function() {
+            checkSetup();
+        };
+
+        function checkSetup() {
+            const name = localStorage.getItem('userName');
+            if (!name) {
+                document.getElementById('main-screen').classList.add('hidden');
+                document.getElementById('setup-screen').classList.remove('hidden');
+            } else {
+                document.getElementById('welcome-msg').innerText = name + "님의 영수증 정리";
+                document.getElementById('setup-screen').classList.add('hidden');
+                document.getElementById('main-screen').classList.remove('hidden');
+            }
+        }
+
+        function showSetup() {
+            document.getElementById('userName').value = localStorage.getItem('userName');
+            document.getElementById('folderId').value = localStorage.getItem('folderId');
+            document.getElementById('sheetId').value = localStorage.getItem('sheetId');
+            document.getElementById('main-screen').classList.add('hidden');
+            document.getElementById('setup-screen').classList.remove('hidden');
+        }
+
+        function saveSettings() {
+            localStorage.setItem('userName', document.getElementById('userName').value);
+            localStorage.setItem('folderId', document.getElementById('folderId').value);
+            localStorage.setItem('sheetId', document.getElementById('sheetId').value);
+            alert('설정이 저장되었습니다!');
+            checkSetup();
+        }
+
+        let currentImageBase64 = "";
+
+        function handleFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentImageBase64 = e.target.result.split(',')[1];
+                const preview = document.getElementById('preview');
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                
+                document.getElementById('result-area').classList.remove('hidden');
+                document.getElementById('r-date').value = new Date().toISOString().split('T')[0];
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function sendData() {
+            const btn = document.getElementById('send-btn');
+            const loading = document.getElementById('loading');
+            
+            btn.disabled = true;
+            loading.classList.remove('hidden');
+
+            const payload = {
+                userName: localStorage.getItem('userName'),
+                folderId: localStorage.getItem('folderId'),
+                sheetId: localStorage.getItem('sheetId'),
+                imageByte: currentImageBase64,
+                receipt: {
+                    date: document.getElementById('r-date').value.replace(/-/g, ''),
+                    store: document.getElementById('r-store').value || "Unknown",
+                    amount: document.getElementById('r-amount').value,
+                    currency: document.getElementById('r-currency').value
+                }
+            };
+
+            fetch(WEB_APP_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert('전송 완료! 시트를 확인하세요.');
+                location.reload();
+            })
+            .catch(err => {
+                alert('오류 발생: ' + err);
+                btn.disabled = false;
+                loading.classList.add('hidden');
+            });
+        }
+    </script>
+</body>
+</html>
