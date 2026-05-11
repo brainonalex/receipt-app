@@ -41,9 +41,15 @@
 
     <div id="main-screen" class="card">
         <h2 id="welcome-msg">영수증 촬영</h2>
+        
         <input type="file" id="camera" accept="image/*" capture="environment" class="hidden" onchange="handleFile(this)">
         <button onclick="document.getElementById('camera').click()">📸 영수증 사진 찍기</button>
+        
+        <input type="file" id="gallery" accept="image/*" class="hidden" onchange="handleFile(this)">
+        <button onclick="document.getElementById('gallery').click()" style="background: #495057; margin-top: 10px;">🖼️ 앨범에서 사진 고르기</button>
+        
         <img id="preview">
+        
         <div id="result-area" class="hidden">
             <h3 style="margin-top:20px; font-size:15px;">추출된 내용 확인</h3>
             <input type="date" id="r-date">
@@ -62,7 +68,7 @@
     <div id="loading" class="loading hidden">처리 중입니다...</div>
 
     <script>
-        // 중요: 본인의 웹 앱 URL이 그대로 유지되었습니다.
+        // 본인의 웹 앱 URL (그대로 유지됨)
         var WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx2AToO9SFJ1tl2sMdZQlA3hJugVWe_IxFOB5fhkKPz5cdzU0XLBKWpBW5E_qpBLWQZLw/exec";
 
         window.onload = function() { checkSetup(); };
@@ -146,5 +152,4 @@
     </script>
 </body>
 </html>
-</body>
 </html>
