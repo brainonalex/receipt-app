@@ -3,47 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
     <title>이수 영수증 비서</title>
-    <meta name="apple-mobile-web-app-title" content="이수영수증">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
-    
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
-
     <style>
         :root { --primary: #1a73e8; --bg: #f1f3f4; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 15px; }
         .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 15px; }
-        h2 { margin-top: 0; color: var(--primary); font-size: 1.2rem; }
         input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 16px; margin-top: 10px; cursor: pointer; transition: 0.2s; }
-        button:active { transform: scale(0.98); opacity: 0.9; }
+        button { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 16px; margin-top: 10px; cursor: pointer; }
         .hidden { display: none; }
-        #preview { width: 100%; border-radius: 8px; margin-top: 10px; display: none; border: 1px solid #eee; }
+        #preview { width: 100%; border-radius: 8px; margin-top: 10px; display: none; }
         .status { text-align: center; font-size: 14px; color: #d93025; font-weight: bold; padding: 10px; }
-        .setup-link { background:none; color:#666; font-size:13px; text-decoration:underline; border:none; margin-top:20px; width: auto; padding: 5px; }
     </style>
 </head>
 <body>
 
     <div id="setup-screen" class="card hidden">
         <h2>⚙️ 초기 설정</h2>
-        <p style="font-size: 13px; color: #666;">ID 값은 주소 전체가 아닌 특정 문자열만 넣으세요.</p>
-        <input type="text" id="userName" placeholder="이름 (시트 탭 이름)">
+        <input type="text" id="userName" placeholder="이름 (시트 탭 이름과 동일하게)">
         <input type="text" id="folderId" placeholder="구글 드라이브 폴더 ID">
         <input type="text" id="sheetId" placeholder="스프레드시트 ID">
         <input type="email" id="userEmail" placeholder="백업 이메일 주소">
-        <button onclick="saveSettings()">설정 저장하기</button>
+        <button onclick="saveSettings()">설정 저장</button>
     </div>
 
-    <div id="main-screen" class="card">
+    <div id="main-screen" class="card hidden">
         <h2 id="welcome-msg">영수증 촬영</h2>
-        
         <input type="file" id="camera" accept="image/*" capture="environment" class="hidden" onchange="handleFile(this)">
         <button onclick="document.getElementById('camera').click()">📸 영수증 사진 찍기</button>
-        
         <input type="file" id="gallery" accept="image/*" class="hidden" onchange="handleFile(this)">
         <button onclick="document.getElementById('gallery').click()" style="background:#5f6368;">🖼️ 앨범에서 고르기</button>
         
@@ -51,37 +41,34 @@
         <div id="status-msg" class="status hidden"></div>
 
         <div id="result-area" class="hidden">
-            <h3 style="font-size:14px; color:#555; margin-top: 20px;">데이터 확인 (수정 가능)</h3>
+            <h3 style="font-size:14px; color:#555;">데이터 확인 (수정 가능)</h3>
             <input type="date" id="r-date">
             <input type="text" id="r-store" placeholder="상호명">
             <input type="number" id="r-amount" placeholder="금액">
             <select id="r-currency">
                 <option value="JPY">JPY (엔)</option>
                 <option value="KRW">KRW (원)</option>
-                <option value="USD">USD (달러)</option>
             </select>
             <button id="send-btn" onclick="sendData()" style="background:#1e8e3e;">🚀 전송하기</button>
         </div>
-        <center><button onclick="showSetup()" class="setup-link">설정 다시하기</button></center>
+        <button onclick="showSetup()" style="background:none; color:#666; font-size:13px; text-decoration:underline; border:none; margin-top:20px;">설정 다시하기</button>
     </div>
 
     <script>
-        // 에러 방지용 안전장치
-        window.onerror = function(msg, url, line) {
-            alert("시스템 알림: " + msg + "\n위치: " + line + "번 줄");
-        };
-
-        // ★ 새로 보내주신 URL이 정상적으로 반영되었습니다.
-        var WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwNQN9IGHd7yfaG3NK94pcuzcQG7h6eCT2N2OewSVTD7QC0lLEuFF7oFJmIO2PgcE3lIw/exec";
+        // 대표님의 구글 스크립트 URL이 완벽하게 세팅되어 있습니다! 수정하지 마세요!
+        var WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzNhxSUIu0oH3Uum1FoWuD_FxedTaDlGlZ8HJWTlAoSFpodOf8MMTLTrcepyMN5YH1jZg/exec";
 
         window.onload = function() { checkSetup(); };
         
         function checkSetup() {
-            if (!localStorage.getItem('userName')) {
+            var name = localStorage.getItem('userName');
+            if (!name || name.trim() === "") {
                 document.getElementById('main-screen').classList.add('hidden');
                 document.getElementById('setup-screen').classList.remove('hidden');
             } else {
-                document.getElementById('welcome-msg').innerText = localStorage.getItem('userName') + "님의 영수증 정리";
+                document.getElementById('welcome-msg').innerText = name + "님의 영수증 정리";
+                document.getElementById('main-screen').classList.remove('hidden');
+                document.getElementById('setup-screen').classList.add('hidden');
             }
         }
         
@@ -90,19 +77,26 @@
             localStorage.setItem('folderId', document.getElementById('folderId').value);
             localStorage.setItem('sheetId', document.getElementById('sheetId').value);
             localStorage.setItem('userEmail', document.getElementById('userEmail').value);
-            location.reload();
+            alert("설정이 완료되었습니다!");
+            checkSetup();
         }
         
-        function showSetup() { localStorage.clear(); location.reload(); }
+        function showSetup() { 
+            document.getElementById('userName').value = localStorage.getItem('userName') || "";
+            document.getElementById('folderId').value = localStorage.getItem('folderId') || "";
+            document.getElementById('sheetId').value = localStorage.getItem('sheetId') || "";
+            document.getElementById('userEmail').value = localStorage.getItem('userEmail') || "";
+            document.getElementById('main-screen').classList.add('hidden');
+            document.getElementById('setup-screen').classList.remove('hidden');
+        }
 
         let currentImageBase64 = "";
 
         function handleFile(input) {
             const file = input.files[0];
             if (!file) return;
-            
             const status = document.getElementById('status-msg');
-            status.innerText = "🔍 AI 분석 중... (약 5~10초 소요)";
+            status.innerText = "🔍 AI 분석 중 (5~10초 소요)...";
             status.classList.remove('hidden');
             document.getElementById('result-area').classList.add('hidden');
 
@@ -117,7 +111,6 @@
                     if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
                     canvas.width = width; canvas.height = height;
                     ctx.drawImage(img, 0, 0, width, height);
-                    
                     const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
                     currentImageBase64 = dataUrl.split(',')[1];
                     document.getElementById('preview').src = dataUrl;
@@ -134,13 +127,11 @@
                 const result = await Tesseract.recognize(imageData, 'jpn+kor');
                 let text = result.data.text;
                 
-                // 원문자(②, ⑥ 등)를 일반 숫자로 변환
                 const circleMap = { '⓪':'0','①':'1','②':'2','③':'3','④':'4','⑤':'5','⑥':'6','⑦':'7','⑧':'8','⑨':'9','⑳':'20' };
                 text = text.replace(/[⓪-⑨⑳]/g, m => circleMap[m] || m);
 
                 const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 1);
                 
-                // 금액 추출 로직 (통화 기호 또는 합계 주변 숫자)
                 let amountMatch = text.match(/[¥￥]\s*([0-9,.\s]{2,})/) || text.match(/(?:合計|計|합계|Total)\s*[:：]?\s*([0-9,.\s]{2,})/i);
                 let amount = amountMatch ? amountMatch[1].replace(/[^0-9]/g, '') : "0";
                 
@@ -173,16 +164,8 @@
             };
             fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(payload) })
             .then(r => r.json())
-            .then(d => { 
-                if(d.result=="success") { 
-                    alert("성공적으로 전송되었습니다!"); 
-                    location.reload(); 
-                } else { throw d.message; }
-            })
-            .catch(e => { 
-                alert("전송 오류: " + e); 
-                btn.disabled = false; btn.innerText = "다시 시도하기"; 
-            });
+            .then(d => { if(d.result=="success") { alert("전송 성공!"); location.reload(); } else { throw d.message; }})
+            .catch(e => { alert("오류: " + e); btn.disabled = false; btn.innerText = "다시 시도"; });
         }
     </script>
 </body>
