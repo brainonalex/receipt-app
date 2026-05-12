@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     
     <style>
         :root { --primary: #1a73e8; --bg: #f1f3f4; }
@@ -19,6 +19,7 @@
         .hidden { display: none !important; }
         #preview { width: 100%; border-radius: 8px; margin-top: 10px; display: none; }
         .status { text-align: center; font-size: 14px; color: #d93025; font-weight: bold; padding: 10px; }
+        .version-check { text-align: center; color: #1e8e3e; font-weight: bold; font-size: 13px; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -29,7 +30,8 @@
         <input type="text" id="folderId" placeholder="구글 드라이브 폴더 ID">
         <input type="text" id="sheetId" placeholder="스프레드시트 ID">
         <input type="email" id="userEmail" placeholder="백업 이메일 주소 (선택)">
-        <button onclick="saveSettings()" id="save-btn">설정 저장 및 시작하기</button>
+        <button onclick="saveSettings()">설정 저장 및 시작하기</button>
+        <div class="version-check">✅ 최신버전 V.FINAL 적용됨</div>
     </div>
 
     <div id="main-screen" class="card hidden">
@@ -59,25 +61,25 @@
     <script>
         var WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzNhxSUIu0oH3Uum1FoWuD_FxedTaDlGlZ8HJWTlAoSFpodOf8MMTLTrcepyMN5YH1jZg/exec";
 
-        // 앱이 켜질 때 이름이 저장되어 있으면 바로 메인 화면으로 이동
         window.onload = function() {
-            var name = localStorage.getItem('userName');
-            if (name && name.trim() !== "") {
-                showMainScreen(name);
-            }
+            try {
+                var name = localStorage.getItem('userName');
+                if (name && name.trim() !== "") { showMainScreen(name); }
+            } catch(e) { }
         };
         
         function saveSettings() {
-            var name = document.getElementById('userName').value;
-            if(!name) { alert("이름을 입력해주세요!"); return; }
-            
-            localStorage.setItem('userName', name);
-            localStorage.setItem('folderId', document.getElementById('folderId').value);
-            localStorage.setItem('sheetId', document.getElementById('sheetId').value);
-            localStorage.setItem('userEmail', document.getElementById('userEmail').value);
-            
-            // 페이지 새로고침(reload)을 빼고 바로 화면 전환
-            showMainScreen(name);
+            try {
+                var name = document.getElementById('userName').value;
+                if(!name) { alert("이름을 꼭 입력해주세요!"); return; }
+                localStorage.setItem('userName', name);
+                localStorage.setItem('folderId', document.getElementById('folderId').value);
+                localStorage.setItem('sheetId', document.getElementById('sheetId').value);
+                localStorage.setItem('userEmail', document.getElementById('userEmail').value);
+                showMainScreen(name);
+            } catch(e) {
+                alert("설정 저장 중 오류가 발생했습니다. 아이폰 설정에서 쿠키 차단이 되어있는지 확인해주세요.");
+            }
         }
 
         function showMainScreen(name) {
@@ -101,11 +103,6 @@
             const file = input.files[0];
             if (!file) return;
             
-            if (typeof Tesseract === 'undefined') {
-                alert("AI 엔진을 로딩 중입니다. 3초 뒤에 다시 선택해주세요!");
-                return;
-            }
-
             const status = document.getElementById('status-msg');
             status.innerText = "🔍 AI 분석 중 (5~10초 소요)...";
             status.classList.remove('hidden');
@@ -126,7 +123,13 @@
                     currentImageBase64 = dataUrl.split(',')[1];
                     document.getElementById('preview').src = dataUrl;
                     document.getElementById('preview').style.display = 'block';
-                    runOCR(dataUrl);
+                    
+                    if (typeof Tesseract !== 'undefined') {
+                        runOCR(dataUrl);
+                    } else {
+                        status.innerText = "⚠️ AI 로딩 지연. 아래에 직접 입력해 주세요.";
+                        document.getElementById('result-area').classList.remove('hidden');
+                    }
                 };
                 img.src = e.target.result;
             };
@@ -176,12 +179,10 @@
             .then(d => { 
                 if(d.result=="success") { 
                     alert("전송이 완료되었습니다!"); 
-                    // 화면 비우기
                     document.getElementById('preview').style.display = 'none';
                     document.getElementById('result-area').classList.add('hidden');
                     document.getElementById('status-msg').classList.add('hidden');
-                    btn.disabled = false; 
-                    btn.innerText = "🚀 전송하기";
+                    btn.disabled = false; btn.innerText = "🚀 전송하기";
                 } else { throw d.message; }
             })
             .catch(e => { alert("전송 실패: " + e); btn.disabled = false; btn.innerText = "🚀 전송하기"; });
