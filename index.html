@@ -7,26 +7,28 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js" defer></script>
+    
     <style>
         :root { --primary: #1a73e8; --bg: #f1f3f4; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 15px; }
         .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 15px; }
         input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
         button { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 16px; margin-top: 10px; cursor: pointer; }
-        .hidden { display: none; }
+        .hidden { display: none !important; }
         #preview { width: 100%; border-radius: 8px; margin-top: 10px; display: none; }
         .status { text-align: center; font-size: 14px; color: #d93025; font-weight: bold; padding: 10px; }
     </style>
 </head>
 <body>
 
-    <div id="setup-screen" class="card hidden">
+    <div id="setup-screen" class="card">
         <h2>⚙️ 초기 설정</h2>
         <input type="text" id="userName" placeholder="이름 (시트 탭 이름과 동일하게)">
         <input type="text" id="folderId" placeholder="구글 드라이브 폴더 ID">
         <input type="text" id="sheetId" placeholder="스프레드시트 ID">
-        <input type="email" id="userEmail" placeholder="백업 이메일 주소">
+        <input type="email" id="userEmail" placeholder="백업 이메일 주소 (선택)">
         <button onclick="saveSettings()">설정 저장</button>
     </div>
 
@@ -51,24 +53,27 @@
             </select>
             <button id="send-btn" onclick="sendData()" style="background:#1e8e3e;">🚀 전송하기</button>
         </div>
-        <button onclick="showSetup()" style="background:none; color:#666; font-size:13px; text-decoration:underline; border:none; margin-top:20px;">설정 다시하기</button>
+        <button onclick="showSetup()" style="background:none; color:#666; font-size:13px; text-decoration:underline; border:none; margin-top:20px; box-shadow:none;">설정 다시하기</button>
     </div>
 
     <script>
-        // 대표님의 구글 스크립트 URL이 완벽하게 세팅되어 있습니다! 수정하지 마세요!
+        // 에러 발생 시 알림창 띄우기 (먹통 방지)
+        window.onerror = function(msg) { alert("오류가 발생했습니다: " + msg); };
+
         var WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzNhxSUIu0oH3Uum1FoWuD_FxedTaDlGlZ8HJWTlAoSFpodOf8MMTLTrcepyMN5YH1jZg/exec";
 
-        window.onload = function() { checkSetup(); };
-        
+        // 화면 렌더링 즉시 실행 (하얀 화면 방지)
+        checkSetup();
+
         function checkSetup() {
             var name = localStorage.getItem('userName');
             if (!name || name.trim() === "") {
-                document.getElementById('main-screen').classList.add('hidden');
                 document.getElementById('setup-screen').classList.remove('hidden');
+                document.getElementById('main-screen').classList.add('hidden');
             } else {
                 document.getElementById('welcome-msg').innerText = name + "님의 영수증 정리";
-                document.getElementById('main-screen').classList.remove('hidden');
                 document.getElementById('setup-screen').classList.add('hidden');
+                document.getElementById('main-screen').classList.remove('hidden');
             }
         }
         
@@ -78,7 +83,7 @@
             localStorage.setItem('sheetId', document.getElementById('sheetId').value);
             localStorage.setItem('userEmail', document.getElementById('userEmail').value);
             alert("설정이 완료되었습니다!");
-            checkSetup();
+            location.reload();
         }
         
         function showSetup() { 
@@ -95,6 +100,13 @@
         function handleFile(input) {
             const file = input.files[0];
             if (!file) return;
+            
+            // AI 로딩 여부 체크
+            if (typeof Tesseract === 'undefined') {
+                alert("AI 엔진을 인터넷에서 불러오는 중입니다. 5초 뒤에 다시 선택해주세요!");
+                return;
+            }
+
             const status = document.getElementById('status-msg');
             status.innerText = "🔍 AI 분석 중 (5~10초 소요)...";
             status.classList.remove('hidden');
@@ -165,7 +177,7 @@
             fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(payload) })
             .then(r => r.json())
             .then(d => { if(d.result=="success") { alert("전송 성공!"); location.reload(); } else { throw d.message; }})
-            .catch(e => { alert("오류: " + e); btn.disabled = false; btn.innerText = "다시 시도"; });
+            .catch(e => { alert("전송에 실패했습니다. 다시 시도해 주세요."); btn.disabled = false; btn.innerText = "🚀 전송하기"; });
         }
     </script>
 </body>
