@@ -29,7 +29,7 @@
         <input type="text" id="folderId" placeholder="구글 드라이브 폴더 ID">
         <input type="text" id="sheetId" placeholder="스프레드시트 ID">
         <input type="email" id="userEmail" placeholder="백업 이메일 주소 (선택)">
-        <button onclick="saveSettings()">설정 저장</button>
+        <button onclick="saveSettings()" id="save-btn">설정 저장 및 시작하기</button>
     </div>
 
     <div id="main-screen" class="card hidden">
@@ -57,33 +57,33 @@
     </div>
 
     <script>
-        // 에러 발생 시 알림창 띄우기 (먹통 방지)
-        window.onerror = function(msg) { alert("오류가 발생했습니다: " + msg); };
-
         var WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzNhxSUIu0oH3Uum1FoWuD_FxedTaDlGlZ8HJWTlAoSFpodOf8MMTLTrcepyMN5YH1jZg/exec";
 
-        // 화면 렌더링 즉시 실행 (하얀 화면 방지)
-        checkSetup();
-
-        function checkSetup() {
+        // 앱이 켜질 때 이름이 저장되어 있으면 바로 메인 화면으로 이동
+        window.onload = function() {
             var name = localStorage.getItem('userName');
-            if (!name || name.trim() === "") {
-                document.getElementById('setup-screen').classList.remove('hidden');
-                document.getElementById('main-screen').classList.add('hidden');
-            } else {
-                document.getElementById('welcome-msg').innerText = name + "님의 영수증 정리";
-                document.getElementById('setup-screen').classList.add('hidden');
-                document.getElementById('main-screen').classList.remove('hidden');
+            if (name && name.trim() !== "") {
+                showMainScreen(name);
             }
-        }
+        };
         
         function saveSettings() {
-            localStorage.setItem('userName', document.getElementById('userName').value);
+            var name = document.getElementById('userName').value;
+            if(!name) { alert("이름을 입력해주세요!"); return; }
+            
+            localStorage.setItem('userName', name);
             localStorage.setItem('folderId', document.getElementById('folderId').value);
             localStorage.setItem('sheetId', document.getElementById('sheetId').value);
             localStorage.setItem('userEmail', document.getElementById('userEmail').value);
-            alert("설정이 완료되었습니다!");
-            location.reload();
+            
+            // 페이지 새로고침(reload)을 빼고 바로 화면 전환
+            showMainScreen(name);
+        }
+
+        function showMainScreen(name) {
+            document.getElementById('welcome-msg').innerText = name + "님의 영수증 정리";
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('main-screen').classList.remove('hidden');
         }
         
         function showSetup() { 
@@ -101,9 +101,8 @@
             const file = input.files[0];
             if (!file) return;
             
-            // AI 로딩 여부 체크
             if (typeof Tesseract === 'undefined') {
-                alert("AI 엔진을 인터넷에서 불러오는 중입니다. 5초 뒤에 다시 선택해주세요!");
+                alert("AI 엔진을 로딩 중입니다. 3초 뒤에 다시 선택해주세요!");
                 return;
             }
 
@@ -138,10 +137,8 @@
             try {
                 const result = await Tesseract.recognize(imageData, 'jpn+kor');
                 let text = result.data.text;
-                
                 const circleMap = { '⓪':'0','①':'1','②':'2','③':'3','④':'4','⑤':'5','⑥':'6','⑦':'7','⑧':'8','⑨':'9','⑳':'20' };
                 text = text.replace(/[⓪-⑨⑳]/g, m => circleMap[m] || m);
-
                 const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 1);
                 
                 let amountMatch = text.match(/[¥￥]\s*([0-9,.\s]{2,})/) || text.match(/(?:合計|計|합계|Total)\s*[:：]?\s*([0-9,.\s]{2,})/i);
@@ -176,8 +173,18 @@
             };
             fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(payload) })
             .then(r => r.json())
-            .then(d => { if(d.result=="success") { alert("전송 성공!"); location.reload(); } else { throw d.message; }})
-            .catch(e => { alert("전송에 실패했습니다. 다시 시도해 주세요."); btn.disabled = false; btn.innerText = "🚀 전송하기"; });
+            .then(d => { 
+                if(d.result=="success") { 
+                    alert("전송이 완료되었습니다!"); 
+                    // 화면 비우기
+                    document.getElementById('preview').style.display = 'none';
+                    document.getElementById('result-area').classList.add('hidden');
+                    document.getElementById('status-msg').classList.add('hidden');
+                    btn.disabled = false; 
+                    btn.innerText = "🚀 전송하기";
+                } else { throw d.message; }
+            })
+            .catch(e => { alert("전송 실패: " + e); btn.disabled = false; btn.innerText = "🚀 전송하기"; });
         }
     </script>
 </body>
